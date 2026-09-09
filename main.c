@@ -372,29 +372,36 @@ void tick()
 
 struct timespec start, end;
 
+#define FILE_SIZE (128 * 1024) 
 
 int main(int argc, char **argv) // assembler havent rewriten yet
 {
-	// test 60m instruction execution
-    memory[0] = 0b0001000110000001;  // ADD R0, 1
-    memory[1] = 0b1010111111111110;  //BRnzp -2
-	
-	clock_gettime(CLOCK_MONOTONIC, &start);
 
-	for (int i = 0; i < 1000; i++)
+	if (argc != 2)
 	{
-    	registers[0] = 0;
-    	pc = 0;
+		printf("wrong number of arguments given" 
+		"\nusage: bob16 <program.bin>\n");
+		exit(1);
+	}
+	
+	FILE *file = fopen(argv[1], "r");
 
-    	while (registers[0] != 30000)
-        	tick();
+	if (file==NULL)
+	{
+		perror("file not found");
+		exit(0xdeadbeef);
 	}
 
-	clock_gettime(CLOCK_MONOTONIC, &end);
-		double seconds =
-	    	(end.tv_sec - start.tv_sec) +
-	    	(end.tv_nsec - start.tv_nsec) / 1e9;
-	    	
-	printf("time: %f seconds\n", seconds);
-    
+	size_t bytesRead = fread(memory, 1, FILE_SIZE, file);
+	printf("program loaded size:%lu\n", bytesRead);
+	printf("first 4 words 0x%X 0x%X 0x%X 0x%X\n", memory[0], memory[1], memory[2], memory[3]);
+	printf("execution starts\n");
+	fflush(stdout);
+
+	fclose(file);
+
+	while (1)
+	{
+		tick();
+	}	
 }

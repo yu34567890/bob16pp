@@ -225,6 +225,7 @@ void tick()
 			break;
 
 		case NOT:
+			#ifndef C_BOB
 			if (current_instruction & 0x1F) {
 				printf("bad instruction: %X\n at memory address %X\n", current_instruction, memory[pc - 1]);
 				exit(0xdeadbeef);
@@ -237,6 +238,20 @@ void tick()
 			}
 			updateCC(registers[dst]);
 			break;
+			#endif
+			#ifdef C_BOB
+			if (current_instruction & 0x1F) {
+				exit(-1);
+			}
+
+			if (!(current_instruction& 0x800)) {
+				registers[(current_instruction >> 8)& 0x7] = ~registers[(current_instruction >> 5) & 0x7];
+			} else {
+				registers[(current_instruction >> 8)& 0x7] = ~sext_4(current_instruction & 0xF);
+			}
+			break;
+
+			#endif
 
 		case LD:
 			// ram.mar = pc + sext(current_instruction & 0x1FF, 9);
@@ -297,7 +312,12 @@ void tick()
 
 		case JSR:
 			registers[7] = pc;
+			#ifndef C_BOB
 			if (!(current_instruction & 0x800)) 
+			#endif
+			#ifdef C_BOB
+			if ((current_instruction & 0x800)) 
+			#endif
 				pc += sext_11(current_instruction & 0x7FF);
 				
 			else 

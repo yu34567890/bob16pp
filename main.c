@@ -247,7 +247,7 @@ printf(
 			break;
 
 		case LEA:
-			registers[dst] = pc-1;
+			registers[dst] = pc + sext_9(current_instruction & 0x1FF);
 			updateCC(registers[dst]);
 			break;
 

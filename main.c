@@ -34,9 +34,21 @@ typedef enum TRAP_VECTOR_E {
 	PUTC,
 	PUTS,
 	GETS,
-	EXTEND
+	ARITHMETIC_EXPANSION
 } TRAP_VECTOR;
 
+enum ARITHMETIC_EXPANSION
+{
+	SUB, // finaly for god sake lol
+	MUL,
+	IDIV,
+	MOD,
+	INC,
+	DEC,
+	MIN,
+	MAX,
+	CMP
+};
 
 #define sext_4(x)  (((x) >= 0x8)   ? (int16_t)((x) | 0xFFF0) : (x))
 #define sext_6(x)  (((x) >= 0x20)  ? (int16_t)((x) | 0xFFC0) : (x))
@@ -45,7 +57,7 @@ typedef enum TRAP_VECTOR_E {
 #define sext_11(x) (((x) >= 0x400) ? (int16_t)((x) | 0xF800) : (x))
 
 reg_t    registers[8]; 
-uint16_t memory[65535];
+uint16_t memory[65536];
 uint16_t pc;
 uint8_t  flag_register;
 uint16_t current_instruction;
@@ -57,6 +69,61 @@ void updateCC(int16_t val)
         ((val < 0) << 2) |
         ((val == 0) << 1) |
         (val > 0);
+}
+
+void arithmetic_expansion()
+{
+	current_instruction = memory[pc];
+	pc++; // update the pc after retriving the instruction (bob style)
+	uint8_t src1 = (current_instruction >> 1) & 0x7;
+	uint8_t src2 = (current_instruction >> 4) & 0x7;
+	enum ARITHMETIC_EXPANSION opcode = (current_instruction >> 12) & 0xF;
+	uint8_t dst = (current_instruction >> 9) & 0x7;
+
+	switch(opcode)
+	{
+		case SUB:
+			registers[dst] = registers[src2] - registers[src1];
+			updateCC(registers[dst]);
+			break;
+
+		case MUL:
+			registers[dst] = registers[src2] * registers[src1];
+			updateCC(registers[dst]);
+			break;
+
+		case IDIV:
+			registers[dst] = registers[src2] / registers[src1];
+			updateCC(registers[dst]);
+			break;
+
+		case MOD:
+			registers[dst] = registers[src2] % registers[src1];
+			updateCC(registers[dst]);
+			break;
+
+		case INC:
+			updateCC(++registers[dst]);
+			break;
+
+		case DEC:
+			updateCC(--registers[dst]);
+			break;
+
+		case MIN:
+			registers[dst] = (registers[src1] < registers[src2]) ? registers[src1] : registers[src2];
+			updateCC(registers[dst]);
+			break;
+
+		case MAX:
+			registers[dst] = (registers[src1] > registers[src2]) ? registers[src1] : registers[src2];
+			updateCC(registers[dst]);
+			break;
+
+		case CMP:
+			updateCC(registers[src1] - registers[src2]);
+			break;
+	}	
 }
 
 void tick()
@@ -212,6 +279,7 @@ void tick()
 			break;
 
 		case BR:
+			
 			if ((current_instruction >> 9) & flag_register)
 			{
 				pc += sext_9(current_instruction & 0x1FF);
@@ -289,7 +357,8 @@ void tick()
 					break;
 				}
 					
-				case EXTEND:
+				case ARITHMETIC_EXPANSION:
+					arithmetic_expansion();
 					break;
 			}
 
@@ -299,7 +368,33 @@ void tick()
 }
 
 
+#include <time.h>
+
+struct timespec start, end;
+
+
 int main(int argc, char **argv) // assembler havent rewriten yet
 {
+	// test 60m instruction execution
+    memory[0] = 0b0001000110000001;  // ADD R0, 1
+    memory[1] = 0b1010111111111110;  //BRnzp -2
+	
+	clock_gettime(CLOCK_MONOTONIC, &start);
+
+	for (int i = 0; i < 1000; i++)
+	{
+    	registers[0] = 0;
+    	pc = 0;
+
+    	while (registers[0] != 30000)
+        	tick();
+	}
+
+	clock_gettime(CLOCK_MONOTONIC, &end);
+		double seconds =
+	    	(end.tv_sec - start.tv_sec) +
+	    	(end.tv_nsec - start.tv_nsec) / 1e9;
+	    	
+	printf("time: %f seconds\n", seconds);
     
 }

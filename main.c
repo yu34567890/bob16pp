@@ -92,14 +92,6 @@ void tick()
 			break;
 
 		case ADD:
-printf(
-    "ADD ir=%04x mode=%d dst=%d src=%d imm7=%d\n",
-    current_instruction,
-    (current_instruction >> 7) & 3,
-    dst,
-    (current_instruction >> 9) & 7,
-    sext_7(current_instruction & 0x7f)
-);
 			switch ((current_instruction >> 7) & 0x3) 
 			{
 				case 0:
@@ -220,7 +212,6 @@ printf(
 			break;
 
 		case BR:
-			printf("DEBUG_BR ir:%d, flag:%d\n", current_instruction, (current_instruction >> 9) & flag_register);
 			if ((current_instruction >> 9) & flag_register)
 			{
 				pc += sext_9(current_instruction & 0x1FF);

@@ -6,3 +6,6 @@ emulator runs arround 80 mips on a ryzen 5 2600x with -O0
 and runs arround 130-200 mips with -O3
 
 i am planing to add extended instruction using trap 4
+
+quick note
+bin loading uses little endian

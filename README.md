@@ -56,3 +56,6 @@ all extended instructions update the condition codes (n/z/p) same as base ALU op
 - INC/DEC only use `dst`, `src1`/`src2` fields are ignored (should be left as 0 by convention but currently unchecked).
 - there is currently no assembler support for these — you'll need to hand-encode the trap 4 + sub-opcode word pair, or write your own assembler.
 
+## on trap expansion
+
+`trap 4` is used for arithmetic expansion (see above). more expansions will not use trap 4 instead they will use incremental trap 5 6 7 8 9 

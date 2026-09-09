@@ -208,7 +208,7 @@ void tick()
 					break;
 
 				case 2:
-					if (current_instruction & 0xF) {
+					if (current_instruction & 0x1F) {
 						printf("bad instruction: %X\n at memory address %X\n", current_instruction, memory[pc - 1]);
 						exit(0xdeadbeef);
 					}

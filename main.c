@@ -7,6 +7,7 @@ ignore some parts theyre just there because for me to look up and steal some cod
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <inttypes.h>
 
 typedef int16_t reg_t;
 
@@ -28,6 +29,31 @@ typedef enum INSTRUCTION_E {
 	RET,
 	TRAP
 } INSTRUCTION;
+
+char *instruction_string(uint16_t ir)
+{
+	uint16_t instruction_opcode = ir >> 12;
+	switch (instruction_opcode)
+	{
+		case NOP: return "nop" ;
+		case ADD: return "add" ;
+		case AND: return "and" ;
+		case NOT: return "not" ;
+		case LD:  return "ld"  ;
+		case LDI: return "ldi" ;
+		case LDR: return "ldr" ;
+		case ST:  return "st"  ;
+		case STI: return "sti" ; 
+		case STR: return "str" ;
+		case BR:  return "br"  ;
+		case JMP: return "jmp" ;
+		case JSR: return "jsr" ;
+		case LEA: return "lea" ;
+		case RET: return "ret" ; 
+		case TRAP:return "trap";
+		default: return "fuck you";
+	}
+}
 
 typedef enum TRAP_VECTOR_E {
 	HALT,
@@ -175,11 +201,11 @@ void tick()
 					break;
 
 				case 2:
-					if (current_instruction & 0xF) {
-						printf("bad instruction: %X\n at memory address %X\n", current_instruction, memory[pc - 1]);
-						exit(0xdeadbeef);
+					if (current_instruction & 0x1F) {
+						printf("bad instruction: %X\n at memory address %X\n", current_instruction, pc-1);
+						exit(-1);
 					}
-
+					printf(" add mode 2 ");
 					registers[dst] = registers[(current_instruction >> 9) & 0x7] + registers[(current_instruction >> 4) & 0x7];
 					break;
 				case 3:
@@ -257,7 +283,7 @@ void tick()
 			// ram.mar = pc + sext(current_instruction & 0x1FF, 9);
 			// registers[dest] = ram.mdr;
 			// updateCC(registers[dest]);
-			registers[dst] = memory[pc + sext_9(current_instruction & 0x1ff)];
+			registers[dst] = memory[(uint16_t)(pc + sext_9(current_instruction & 0x1ff))];
 			updateCC(registers[dst]);
 			break;
 
@@ -271,26 +297,27 @@ void tick()
 			registers[dest] = ram.mdr;
 			updateCC(registers[dest]);
 			*/
-			registers[dst] = memory[memory[pc + sext_9(current_instruction & 0x1FF)]];
+			registers[dst] = memory[memory[(uint16_t)(pc + sext_9(current_instruction & 0x1FF))]];
 			updateCC(registers[dst]);
 			break;
 
 		case LDR:
 			// ram.mar = registers[(current_instruction >> 6) & 0x7] + sext(current_instruction & 0x3F, 6);
-			registers[dst] = memory[registers[(current_instruction >> 6) & 0x7] + sext_6(current_instruction & 0x3F)];
+			registers[dst] = memory[registers[(uint16_t)
+				((current_instruction >> 6) & 0x7)] + sext_6(current_instruction & 0x3F)];
 			updateCC(registers[dst]);
 			break;
 
 		case ST:
-			memory[pc + sext_9(current_instruction & 0x1FF)] = registers[dst];
+			memory[(uint16_t)(pc + sext_9(current_instruction & 0x1FF))] = registers[dst];
 			break;
 
 		case STI:
-			memory[memory[pc + sext_9(current_instruction & 0x1FF)]] = registers[dst];
+			memory[memory[(uint16_t)(pc + sext_9(current_instruction & 0x1FF))]] = registers[dst];
 			break;
 		
 		case STR:
-			memory[registers[(current_instruction >> 6) & 0x7] + sext_6(current_instruction & 0x3F)] = registers[dst];
+			memory[(uint16_t)registers[(uint16_t)((current_instruction >> 6) & 0x7)] + sext_6(current_instruction & 0x3F)] = registers[dst];
 			break;
 
 		case BR:
@@ -331,8 +358,10 @@ void tick()
 			break;
 
 		case RET:
+
 			pc = registers[7];
 			break;
+
 		case TRAP:
 			if (current_instruction & 0xFF) {
 				printf("bad instruction: %X\n at memory address %X\n", current_instruction, memory[pc - 1]);
@@ -389,7 +418,6 @@ void tick()
 
 
 #include <time.h>
-
 struct timespec start, end;
 
 #define FILE_SIZE (128 * 1024) 
@@ -419,9 +447,13 @@ int main(int argc, char **argv) // assembler havent rewriten yet
 	fflush(stdout);
 
 	fclose(file);
-
 	while (1)
 	{
+		for (int i = 0; i<8; i++)
+		{
+			printf("R%d:%d " , i, registers[i]);
+		}
+		printf("pc:%d instrtuction: %s\n",pc, instruction_string(memory[pc]));
 		tick();
 	}	
 }

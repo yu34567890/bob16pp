@@ -8,6 +8,9 @@ ignore some parts theyre just there because for me to look up and steal some cod
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
+#include <pthread.h>
+#include "decompiler.h"
+#include "gpu.h"
 
 typedef int16_t reg_t;
 
@@ -30,30 +33,8 @@ typedef enum INSTRUCTION_E {
 	TRAP
 } INSTRUCTION;
 
-char *instruction_string(uint16_t ir)
-{
-	uint16_t instruction_opcode = ir >> 12;
-	switch (instruction_opcode)
-	{
-		case NOP: return "nop" ;
-		case ADD: return "add" ;
-		case AND: return "and" ;
-		case NOT: return "not" ;
-		case LD:  return "ld"  ;
-		case LDI: return "ldi" ;
-		case LDR: return "ldr" ;
-		case ST:  return "st"  ;
-		case STI: return "sti" ; 
-		case STR: return "str" ;
-		case BR:  return "br"  ;
-		case JMP: return "jmp" ;
-		case JSR: return "jsr" ;
-		case LEA: return "lea" ;
-		case RET: return "ret" ; 
-		case TRAP:return "trap";
-		default: return "fuck you";
-	}
-}
+char *instruction_string(uint16_t ir);
+
 
 typedef enum TRAP_VECTOR_E {
 	HALT,
@@ -422,6 +403,92 @@ struct timespec start, end;
 
 #define FILE_SIZE (128 * 1024) 
 
+#include <unistd.h>
+#include <fcntl.h>
+#include <termios.h>
+
+struct termios old_t, new_t;
+int old_f;
+
+
+void reset_terminal() {
+    tcsetattr(STDIN_FILENO, TCSANOW, &old_t);
+    fcntl(STDIN_FILENO, F_SETFL, old_f);
+}
+
+uint16_t *vram = memory+0xf000;
+
+void *cpu_thread_worker(void *args)
+{
+
+	tcgetattr(STDIN_FILENO, &old_t);
+	old_f = fcntl(STDIN_FILENO, F_GETFL, 0);
+
+	  
+	atexit(reset_terminal);
+
+
+	new_t = old_t;
+	new_t.c_lflag &= ~(ICANON | ECHO);
+	tcsetattr(STDIN_FILENO, TCSANOW, &new_t);
+
+
+	fcntl(STDIN_FILENO, F_SETFL, old_f | O_NONBLOCK);
+	
+	while (1)
+	{
+
+        	char ch=' ';
+		
+	
+		int bytes_read = read(STDIN_FILENO, &ch, 1);
+		if (bytes_read>0)
+		{
+			if (ch != 'n')
+			{
+				memory[0x8000] = ch;
+				memory[0x8001] = 65535;
+			}
+
+		}
+
+
+		// %define KEYBOARD_ADDR 0x8000
+		// %define KEYBOARD_POLL 0x8001	
+		#ifdef DEBUG
+		
+
+		#endif
+		#ifdef DEBUG
+		if (ch=='n')
+		#endif
+		{
+			for (int i = 0; i<8; i++)
+			{
+				printf("R%d:%d " , i, registers[i]);
+			}
+			printf("pc:%d\n",pc);
+
+			printf("prev:   %s\n", decode(memory[pc-1]));
+			printf("current:%s\n", decode(memory[pc]));
+			printf("next:   %s\n", decode(memory[pc+1]));
+
+			for (int i = 0; i<4; i++)
+			{
+				printf("vram[%d]:%x\n", i, vram[i]);
+			}
+			printf("char: %x\n", memory[0x8000]);
+			printf("poll: %x\n\n\n", memory[0x8001]); 
+
+			fflush(stdout); 
+			tick();
+		}
+			
+	}	
+}
+
+
+
 int main(int argc, char **argv) // assembler havent rewriten yet
 {
 
@@ -445,15 +512,23 @@ int main(int argc, char **argv) // assembler havent rewriten yet
 	printf("first 4 words 0x%X 0x%X 0x%X 0x%X\n", memory[0], memory[1], memory[2], memory[3]);
 	printf("execution starts\n");
 	fflush(stdout);
-
 	fclose(file);
-	while (1)
+	
+	pthread_t cpu_thread_id;
+	if (pthread_create(&cpu_thread_id, NULL, cpu_thread_worker, NULL) != 0)
 	{
-		for (int i = 0; i<8; i++)
-		{
-			printf("R%d:%d " , i, registers[i]);
-		}
-		printf("pc:%d instrtuction: %s\n",pc, instruction_string(memory[pc]));
-		tick();
-	}	
+		perror("FUCK YOU");
+		exit(0xff);
+	}
+
+	memset(vram+1, 0x20, 0xFFE*2);	
+	gpu_init(); 
+	while (1) {
+		gpu_render(vram);
+		gpu_wait(60);
+		if (gpu_should_exit()) break;
+	}
+
+	
+
 }

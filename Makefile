@@ -1,3 +1,2 @@
 all:
-	gcc main.c -o main.exe
-	./main.exe
+	gcc main.c -o bob16
